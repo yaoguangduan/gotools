@@ -1,6 +1,7 @@
 package algo
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math/rand/v2"
@@ -10,8 +11,8 @@ import (
 
 func TestFPP(t *testing.T) {
 	bf := New(100000, 0.01)
-	t.Log(bf.k)
-	t.Log(bf.m)
+	t.Log(bf.hashes)
+	t.Log(bf.bitCnt)
 
 	// all added must contains
 	var beg = 0
@@ -57,8 +58,8 @@ func TestFPP(t *testing.T) {
 
 func TestMultiThreadSafe(t *testing.T) {
 	bf := New(10000000, 0.01)
-	t.Log(bf.k)
-	t.Log(bf.m)
+	t.Log(bf.hashes)
+	t.Log(bf.bitCnt)
 	wait := sync.WaitGroup{}
 	wait.Add(1000)
 	for j := 0; j < 1000; j++ {
@@ -84,18 +85,36 @@ func TestMultiThreadSafe(t *testing.T) {
 }
 func TestMarshal(t *testing.T) {
 	bf := New(100000, 0.01)
-	fmt.Println(bf.m)
 	for i := 0; i < 100000; i++ {
 		data := []byte(fmt.Sprintf("ele-%d", i))
 		bf.Add(data)
 	}
 	bys, err := bf.Marshal()
 	assert.Nil(t, err)
+	fmt.Println(bf.hashes)
 	var nbf BloomFilter
 	err = nbf.Unmarshal(bys)
+	fmt.Println(nbf.hashes)
 	for i := 0; i < 100000; i++ {
 		data := []byte(fmt.Sprintf("ele-%d", i))
 		assert.True(t, nbf.Contains(data))
 	}
+
+}
+
+func TestJson(t *testing.T) {
+	bf := New(100, 0.002)
+	bf.AddString("test")
+	fmt.Println(bf.ContainsString("test"))
+	bytes, _ := json.Marshal(bf)
+	var bfn BloomFilter
+	err := json.Unmarshal(bytes, &bfn)
+	if err != nil {
+		panic(err)
+	}
+	assert.True(t, bfn.ContainsString("test"))
+	assert.Equal(t, bf.hashes, bfn.hashes)
+	assert.Equal(t, bf.bitCnt, bfn.bitCnt)
+	assert.Equal(t, bf.bitset.Uint64Array(), bfn.bitset.Uint64Array())
 
 }

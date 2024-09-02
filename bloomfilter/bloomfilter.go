@@ -3,6 +3,7 @@ package algo
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"github.com/spaolacci/murmur3"
 	"gotools/bitarray"
 	"math"
@@ -10,9 +11,8 @@ import (
 
 type BloomFilter struct {
 	bitset *bitarray.SyncBitArray
-	k      int
-	m      int
-	bs     int
+	hashes int
+	bitCnt int
 }
 
 func New(insertions uint, fpp float64) *BloomFilter {
@@ -21,10 +21,9 @@ func New(insertions uint, fpp float64) *BloomFilter {
 
 	bf := &BloomFilter{
 		bitset: bitarray.New(m),
-		k:      int(k),
-		m:      m,
+		hashes: int(k),
+		bitCnt: m,
 	}
-	bf.bs = m
 	return bf
 }
 
@@ -35,20 +34,22 @@ func NewWithInsertion(insertions uint) *BloomFilter {
 func (bf *BloomFilter) Add(data []byte) {
 	h1, h2 := murmur3.Sum128(data)
 	var ch = h1
-	for i := 0; i < bf.k; i++ {
-		bf.bitset.Set(int((ch & math.MaxUint64) % uint64(bf.bs)))
+	for i := 0; i < bf.hashes; i++ {
+		bf.bitset.Set(int((ch & math.MaxUint64) % uint64(bf.bitCnt)))
 		ch += h2
 	}
 }
 func (bf *BloomFilter) AddString(data string) {
 	bf.Add([]byte(data))
 }
-
+func (bf *BloomFilter) ContainsString(data string) bool {
+	return bf.Contains([]byte(data))
+}
 func (bf *BloomFilter) Contains(data []byte) bool {
 	h1, h2 := murmur3.Sum128(data)
 	var ch = h1
-	for i := 0; i < bf.k; i++ {
-		if !bf.bitset.Get(int((ch & math.MaxUint64) % uint64(bf.bs))) {
+	for i := 0; i < bf.hashes; i++ {
+		if !bf.bitset.Get(int((ch & math.MaxUint64) % uint64(bf.bitCnt))) {
 			return false
 		}
 		ch += h2
@@ -58,11 +59,11 @@ func (bf *BloomFilter) Contains(data []byte) bool {
 
 func (bf *BloomFilter) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, uint64(bf.m))
+	err := binary.Write(buf, binary.LittleEndian, uint64(bf.bitCnt))
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(buf, binary.LittleEndian, uint64(bf.k))
+	err = binary.Write(buf, binary.LittleEndian, uint64(bf.hashes))
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +109,38 @@ func (bf *BloomFilter) Unmarshal(data []byte) error {
 		bitsetData[i] = v
 	}
 
-	bf.m = int(m)
-	bf.k = int(k)
+	bf.bitCnt = int(m)
+	bf.hashes = int(k)
 	bf.bitset = bitarray.NewFrom(bitsetData)
-	bf.bs = int(m)
+	return nil
+}
+
+type jbf struct {
+	Hashes int      `json:"hashes"`
+	BitCnt int      `json:"bitcnt"`
+	Bitset []uint64 `json:"bitset"`
+}
+
+func (bf *BloomFilter) MarshalJSON() ([]byte, error) {
+	data := jbf{}
+	data.Hashes = bf.hashes
+	data.BitCnt = bf.bitCnt
+	data.Bitset = bf.bitset.Uint64Array()
+	marshal, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return marshal, nil
+}
+
+func (bf *BloomFilter) UnmarshalJSON(bys []byte) error {
+	var data jbf
+	err := json.Unmarshal(bys, &data)
+	if err != nil {
+		return err
+	}
+	bf.bitCnt = data.BitCnt
+	bf.hashes = data.Hashes
+	bf.bitset = bitarray.NewFrom(data.Bitset)
 	return nil
 }
