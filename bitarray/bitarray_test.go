@@ -23,7 +23,36 @@ func TestSetGet(t *testing.T) {
 
 func TestPutUint64(t *testing.T) {
 	ba := New(64)
-	ba.PutUint64(0, 1)
+	ba.PutUint64(0, 3)
 	fmt.Println(ba)
 	assert.Equal(t, true, ba.Get(0))
+	assert.Equal(t, 2, ba.BitCnt())
+}
+func TestIter(t *testing.T) {
+	ba := New(64)
+	ba.Set(0)
+	ba.Set(1)
+	ba.Set(2)
+	bs := make([]bool, 0)
+	for _, b := range ba.Iter() {
+		bs = append(bs, b)
+	}
+	fmt.Println(bs)
+	assert.Equal(t, true, ba.Get(0))
+	assert.Equal(t, false, ba.Get(3))
+}
+func TestUnset(t *testing.T) {
+	ba := New(64)
+	ba.Set(0)
+	ba.Set(1)
+	assert.Equal(t, 2, ba.BitCnt())
+	fmt.Println(ba)
+	ba.Unset(0)
+	fmt.Println(ba)
+	assert.Equal(t, 1, ba.BitCnt())
+	assert.False(t, ba.Get(0))
+	ba.Clear()
+	assert.False(t, ba.Get(1))
+	fmt.Println(ba)
+	assert.Equal(t, 0, ba.BitCnt())
 }

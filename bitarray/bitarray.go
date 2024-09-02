@@ -3,6 +3,7 @@ package bitarray
 import (
 	"fmt"
 	"gotools/i64adder"
+	"iter"
 	"math/bits"
 	"strings"
 	"sync/atomic"
@@ -66,6 +67,47 @@ func (ab *SyncBitArray) Get(index int) bool {
 // BitCnt bit 1 count
 func (ab *SyncBitArray) BitCnt() int {
 	return int(ab.bitCnt.Sum())
+}
+
+// Iter [index,set flag]
+func (ab *SyncBitArray) Iter() iter.Seq2[int, bool] {
+	return func(yield func(int, bool) bool) {
+		for i := range ab.len {
+			if !yield(i, ab.Get(i)) {
+				break
+			}
+		}
+	}
+}
+
+func (ab *SyncBitArray) Unset(index int) bool {
+	if index < 0 || index >= ab.len {
+		panic(fmt.Sprintf("index %d out of range %d", index, ab.len))
+	}
+	aIdx := index >> uint64Bit
+	mask := ^(uint64(1) << (index % 64))
+
+	var oldValue uint64
+	var newValue uint64
+	for {
+		oldValue = ab.data[aIdx].Load()
+		newValue = oldValue & mask
+		if oldValue == newValue {
+			return false
+		}
+		if ab.data[aIdx].CompareAndSwap(oldValue, newValue) {
+			ab.bitCnt.Add(-1)
+			return true
+		}
+	}
+}
+
+// Clear all bits in the array
+func (ab *SyncBitArray) Clear() {
+	for i := range ab.data {
+		oldValue := ab.data[i].Swap(0)
+		ab.bitCnt.Add(-int64(bits.OnesCount64(oldValue)))
+	}
 }
 
 // PutUint64 put all value bit into uint64 idx
