@@ -1,6 +1,7 @@
 package i64adder
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math/rand/v2"
 	"sync"
@@ -57,4 +58,9 @@ func TestRandom(t *testing.T) {
 	}
 	wait.Wait()
 	assert.Equal(t, sum.Load(), adder.Sum())
+}
+func TestDecr(t *testing.T) {
+	adder := New()
+	adder.Decr()
+	fmt.Println(adder.Sum())
 }

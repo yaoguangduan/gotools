@@ -2,6 +2,7 @@ package unbounded
 
 import (
 	"fmt"
+	"github.com/puzpuzpuz/xsync/v3"
 	"sync"
 	"testing"
 	"time"
@@ -51,5 +52,28 @@ func BenchmarkUnboundQueue(b *testing.B) {
 	}
 	w.Wait()
 	ub.Close()
+	fmt.Println(time.Now().UnixMilli() - cur)
+}
+
+func BenchmarkXSyncQueue(b *testing.B) {
+	b.SetParallelism(5)
+	ub := xsync.NewMPMCQueueOf[int](128)
+	go func() {
+		for {
+			ub.Dequeue()
+		}
+	}()
+	w := sync.WaitGroup{}
+	cur := time.Now().UnixMilli()
+	for i := 0; i < 10; i++ {
+		w.Add(1)
+		go func() {
+			defer w.Done()
+			for i := 0; i < 1000000; i++ {
+				ub.Enqueue(i)
+			}
+		}()
+	}
+	w.Wait()
 	fmt.Println(time.Now().UnixMilli() - cur)
 }

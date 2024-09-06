@@ -1,6 +1,7 @@
 package i64adder
 
 import (
+	"github.com/puzpuzpuz/xsync/v3"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -64,6 +65,23 @@ func BenchmarkAtomicInt64(b *testing.B) {
 			defer wg.Done()
 			for i := 0; i < 1000; i++ {
 
+				counter.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func BenchmarkXSyncCounter(b *testing.B) {
+	var counter = xsync.NewCounter()
+	var wg sync.WaitGroup
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 1000; i++ {
 				counter.Add(1)
 			}
 		}()

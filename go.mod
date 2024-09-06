@@ -3,6 +3,7 @@ module gotools
 go 1.23
 
 require (
+	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/sys v0.24.0
